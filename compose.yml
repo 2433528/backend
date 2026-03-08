@@ -1,0 +1,64 @@
+services:
+    django-webserver:
+        build: ./
+        container_name: ${APP_NAME}-django-webserver        
+        env_file:
+           - .env
+        environment:
+           - POSTGRES_HOST=${DB_HOST}
+           - POSTGRES_PORT=${DB_PORT}
+           - POSTGRES_USER=${DB_USER}
+           - POSTGRES_DB=${DB_DB}           
+           - POSTGRES_PASSWORD=${DB_PASSWORD}
+   
+        networks:
+            - app-network
+        ports:
+            - ${HTTP_PORT}:8000
+            
+        restart: always
+        
+        depends_on:
+            db: 
+                condition: service_healthy
+                
+    db:
+        image: postgres:15
+        container_name: ${APP_NAME}-database
+        # variables de entorno para la imagen, los valores estan en .env
+        env_file:
+           - .env
+        environment:
+           - POSTGRES_DB=${DB_DB}
+           - POSTGRES_USER=${DB_USER}
+           - POSTGRES_PASSWORD=${DB_PASSWORD}
+        
+        volumes:
+            - basedatos:/var/lib/postgresql/data
+            
+        networks:
+            - app-network
+            
+        ports:
+            - ${POSTGRES_PORT}:5432
+            
+        restart: always
+        
+        healthcheck:
+            test: ["CMD-SHELL","pg_isready -U ${DB_USER} -d ${DB_DB}"]
+            interval: 30s
+            retries: 10
+            timeout: 100s
+            start_period: 10s 
+                
+
+volumes:
+    basedatos:
+        name: ${APP_NAME}_basedatos
+    
+networks:
+    app-network:
+        external: true
+        
+        
+        
