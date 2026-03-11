@@ -29,12 +29,12 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1']
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
-#CORS_ALLOWED_ORIGINS = [
-    #"https://tu-frontend.vercel.app",
+CORS_ALLOWED_ORIGINS = [
+    "https://backend-ashen-one-96.vercel.app",
     #"http://localhost:3000",
-#]
+]
 
 # Application definition
 
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',    
     'rest_framework',
     'corsheaders',
+    'inicio.apps.InicioConfig',
 ]
 
 REST_FRAMEWORK = {
