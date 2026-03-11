@@ -12,7 +12,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -103,15 +107,26 @@ WSGI_APPLICATION = 'backend.wsgi.app'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+DATABASE_URL = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+
+if not DATABASE_URL:
+    # Construcción manual para Docker
+    user = os.environ.get('POSTGRES_USER')
+    password = os.environ.get('POSTGRES_PASSWORD')
+    host = os.environ.get('POSTGRES_HOST')
+    port = os.environ.get('POSTGRES_PORT')
+    db_name = os.environ.get('POSTGRES_DB')
+    
+    if all([user, password, host, db_name]):
+        DATABASE_URL = f"postgres://{user}:{password}@{host}:{port or 5432}/{db_name}"
+
+# Configuración final
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DATABASE"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST"),
-        "PORT": os.getenv("POSTGRES_PORT"),
-    }
+    'default': dj_database_url.config(
+        default=DATABASE_URL,
+        # Neon (Vercel) requiere SSL.
+        ssl_require=False if os.environ.get('POSTGRES_HOST') == 'db' else True
+    )
 }
 
 
