@@ -14,3 +14,6 @@ migrate-db:
 
 createsuperuser:
 	docker exec -it ${APP_NAME}-django-webserver python3 manage.py createsuperuser
+
+collectstatic:
+	docker exec -it ${APP_NAME}-django-webserver python3 manage.py collectstatic --no-input

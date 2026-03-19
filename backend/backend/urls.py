@@ -21,8 +21,13 @@ from django.conf import settings
 from django.views.generic import RedirectView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),    
+]
+
+urlpatterns += [
+    path('webpush/', include('webpush.urls')),
     path('inicio/', include('inicio.urls')),
     path('', RedirectView.as_view(url='/inicio/', permanent=True)),
+    path('api/', include('api.urls')),
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

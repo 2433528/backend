@@ -31,17 +31,36 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'cambiame')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['.vercel.app', '.onrender.com','localhost', '127.0.0.1']
 
 CORS_ALLOW_ALL_ORIGINS = False
-# CORS_ALLOWED_ORIGINS = [
-#     "https://tu-app-frontend.com",
-#     "https://www.tu-app-frontend.com",
-# ]
-
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://backend-ashen-one-96.vercel.app",
-    #"http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://frontend-x64j.onrender.com",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
 ]
 
 # Application definition
@@ -55,7 +74,20 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',    
     'rest_framework',
     'corsheaders',
+    'webpush',
     'inicio.apps.InicioConfig',
+]
+
+INSTALLED_APPS += [
+    'api.apps.ApiConfig',
+    'usuarios.apps.UsuariosConfig',
+    'comunidad_info.apps.ComunidadInfoConfig',
+    'actas.apps.ActasConfig',
+    'comunicados.apps.ComunicadosConfig',
+    'incidencias.apps.IncidenciasConfig',
+    'info.apps.InfoConfig',
+    'votos.apps.VotosConfig'
+    
 ]
 
 REST_FRAMEWORK = {
@@ -74,6 +106,12 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+
+    'AUTH_COOKIE': 'refresh_token',  # Nombre de la cookie
+    'AUTH_COOKIE_HTTP_ONLY': True,  # Impide que JS acceda a ella
+    'AUTH_COOKIE_PATH': '/',         # Disponible en toda la app
+    'AUTH_COOKIE_SAMESITE': 'Lax',   # Protección CSRF
+    'AUTH_COOKIE_SECURE': True,      # Solo por HTTPS
 }
 
 MIDDLEWARE = [
@@ -177,3 +215,10 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = ["https://frontend-x64j.onrender.com"]
+
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": os.getenv("PUBLIC_KEY"),
+    "VAPID_PRIVATE_KEY": os.getenv("PRIVATE_KEY"),
+    "VAPID_ADMIN_EMAIL": os.getenv("ADMIN_EMAIL")
+}
