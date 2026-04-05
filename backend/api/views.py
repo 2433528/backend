@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import generics, status, views
+from rest_framework import generics, status, views, exceptions
 from rest_framework.response import Response
 from usuarios.models import *
 from comunidad_info.models import *
@@ -13,6 +13,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .pagination import *
+from django.contrib.auth.hashers import make_password
 
 # Create your views here.
 
@@ -86,58 +88,65 @@ def vapid_key(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user(request):
-    try:
-        # Verificamos si existe el perfil 'usuario'
-        perfil = getattr(request.user, 'usuario', None)
-        
-        if not perfil:
-            return Response({'error': 'El usuario no tiene un perfil asociado'}, status=404)
-
-        return Response({
-            'user_id': str(perfil.id),
-            'username': request.user.username,
-            'rol': perfil.rol
-        })
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+    return Response({
+        'user_id': str(request.user.usuario.id) or '',
+        'username':request.user.username,
+        'nombre':request.user.usuario.nombre
+    })
 
 
 # Crud usuarios
 class UsuarioListCreate(generics.ListCreateAPIView):
-    queryset=Usuario.objects.all()
+    permission_classes=[IsAuthenticated]   
     serializer_class=UsuarioSerializer
+    pagination_class=MiPaginacion
 
-    def perform_create(self, serializer):
+    def get_queryset(self):
+        queryset=Usuario.objects.all()
+        comunidad=self.request.query_params.get('comunidad')
+        dni=self.request.query_params.get('dni')
 
-        user=User.objects.create_user(
-            username=serializer.validated_data.pop('username'),
-            password=serializer.validated_data.pop('password'),
-        )
+        if dni:
+            queryset=queryset.filter(dni=dni)
+            return queryset
 
-        return serializer.save(user=user)
+        if comunidad:
+            queryset=queryset.filter(propiedades__comunidad__id=comunidad)
+            return queryset
+        
+        return Usuario.objects.none()
 
 class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Usuario.objects.all()
     serializer_class=UsuarioSerializer
 
+    def perform_update(self, serializer):
+        usuario=self.get_object()
+        password=self.request.data.get('password')
+        comunidad_id=serializer.validated_data.get('comunidad')
+        nuevo_rol=serializer.validated_data.get('rol')
+        nuevo_moroso=serializer.validated_data.get('moroso')
+
+        if comunidad_id:
+            item=RolComunidad.objects.filter(usuario=usuario, comunidad_id=comunidad_id).exclude(rol='gestor').first()
+        
+        if item:            
+            item.rol=nuevo_rol
+            item.moroso=nuevo_moroso
+            item.save()
+
+        if not password:       
+            return serializer.save(password=usuario.user.password)
+        
+        hash_password=make_password(password)
+        usuario.user.password=hash_password
+        usuario.user.save()
+        serializer.save(password=hash_password)
 
 # Crud comunidad
 class ComunidadListCreate(generics.ListCreateAPIView):    
+    queryset=Comunidad.objects.all()
     serializer_class=ComunidadSerializer
-
-    def get_queryset(self):
-        queryset=Comunidad.objects.all()
-        usuario_id=self.request.query_params.get('user')
-        
-        if usuario_id:
-            usuario=Usuario.objects.get(pk=usuario_id)
-            if usuario.rol == 'gestor':
-                queryset=queryset.filter(gestor=usuario.id)
-
-            else:
-                queryset=queryset.filter(propiedades__usuario=usuario.id)
-
-        return queryset
 
 class ComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Comunidad.objects.all()
@@ -145,13 +154,71 @@ class ComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 # Crud propiedad
-class PropiedadListCreate(generics.ListCreateAPIView):
-    queryset=Propiedad.objects.all()
+class PropiedadListCreate(generics.ListCreateAPIView):    
     serializer_class=PropeidadSerializer
+    pagination_class=MiPaginacion
+
+    def get_queryset(self):
+        queryset=Propiedad.objects.all()
+        comunidad=self.request.query_params.get('comunidad')
+        num_letra=self.request.query_params.get('num_piso')
+
+        if comunidad and num_letra:
+            queryset=queryset.filter(comunidad__id=comunidad, num_letra=num_letra)
+            return queryset
+        
+        if comunidad:
+            queryset=queryset.filter(comunidad__id=comunidad)
+            return queryset
+
+        return Propiedad.objects.none()
+        
+    def perform_create(self, serializer):
+        propietario=serializer.validated_data.pop('usuario_dni')
+        comunidad=serializer.validated_data.get('comunidad')
+    
+        if propietario and comunidad:
+            propietario=Usuario.objects.filter(dni=propietario).first()
+            return serializer.save(comunidad=comunidad, usuario=propietario)
+
+        raise ValidationError('Datos no válidos.')
 
 class PropiedadDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Propiedad.objects.all()
     serializer_class=PropeidadSerializer
+
+
+# Crud RolComunidad
+class RolComunidadListCreate(generics.ListCreateAPIView):    
+    serializer_class=RolComunidadSerializer
+
+    def get_queryset(self):
+        queryset=RolComunidad.objects.all()
+        usuario_id=self.request.query_params.get('user')
+        comunidad=self.request.query_params.get('comunidad')
+
+        if usuario_id:
+            queryset=queryset.filter(usuario__id=usuario_id)
+            print(queryset)
+            return queryset
+        
+        if comunidad:
+            queryset=queryset.filter(comunidad__id=comunidad)
+            return queryset
+
+        return RolComunidad.objects.none()
+    
+    def perform_create(self, serializer):
+        try:
+            serializer.save()
+        except:
+            raise ValidationError({
+                "rol": "Este usuario ya tiene un rol incompatible en esta comunidad."
+            })
+
+class RolComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset=RolComunidad.objects.all()
+    serializer_class=RolComunidadSerializer
 
 
 # Crud comunicado
@@ -166,8 +233,17 @@ class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud informacion
 class InformacionListCreate(generics.ListCreateAPIView):
-    queryset=Informacion.objects.all()
     serializer_class=InformacionSerializer
+
+    def get_queryset(self):
+        queryset=Informacion.objects.all()
+        comunidad=self.request.query_params.get('comunidad')
+
+        if comunidad:
+            comunidad=Comunidad.objects.get(pk=comunidad)
+            queryset=queryset.filter(comunidad=comunidad)
+
+        return queryset
 
 class InformacionDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Informacion.objects.all()
@@ -176,13 +252,49 @@ class InformacionDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud incidencia
 class IncidenciaListCreate(generics.ListCreateAPIView):
-    queryset=Incidencia.objects.all()
+    permission_classes=[IsAuthenticated]    
     serializer_class=IncidenciaSerializer
+    pagination_class=MiPaginacion
+
+    def get_queryset(self):
+        queryset=Incidencia.objects.all();
+        comunidad=self.request.query_params.get('comunidad')
+        roles=self.request.user.usuario.roles.all().values_list('rol', flat=True)
+
+        if comunidad:
+            comunidad=Comunidad.objects.get(pk=comunidad)
+            queryset=queryset.filter(comunidad=comunidad)
+
+        if not 'gestor' in roles:
+            queryset=queryset.filter(usuario_creador__user=self.request.user)
+
+        return queryset
 
 class IncidenciaDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Incidencia.objects.all()
     serializer_class=IncidenciaSerializer
 
+class CambiarStadoIncidencia(views.APIView):
+    def patch(self, request, pk):
+        try:
+            incidencia = Incidencia.objects.get(pk=pk)
+        except Incidencia.DoesNotExist:
+            return Response(
+                {'mensaje': 'No encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = CambiarEstadoIncidenciaSerializer(
+            incidencia,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'mensaje': 'Estado cambiado'}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Crud actas
 class ActaListCreate(generics.ListCreateAPIView):

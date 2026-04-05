@@ -22,35 +22,40 @@ urlpatterns = [
     path('propiedades/', PropiedadListCreate.as_view()),
     path('propiedades/<int:pk>/', PropiedadDetail.as_view()),
 
+    # Crud RolComunidades
+    path('roles-comunidad/', RolComunidadListCreate.as_view()),
+    path('roles-comunidad/<int:pk>/', RolComunidadDetail.as_view()),
+
     # Crud comunicado
     path('comunicados/', ComunicadoListCreate.as_view()),
     path('comunicados/<int:pk>/', ComunicadoDetail.as_view()),
 
     # Crud informacion
-    path('propiedades/', InformacionListCreate.as_view()),
-    path('propiedades/<int:pk>/', InformacionDetail.as_view()),
+    path('informaciones/', InformacionListCreate.as_view()),
+    path('informaciones/<int:pk>/', InformacionDetail.as_view()),
 
     # Crud incidencias
     path('incidencias/', IncidenciaListCreate.as_view()),
     path('incidencias/<int:pk>/', IncidenciaDetail.as_view()),
+    path('incicambiarestado/<int:pk>/', CambiarStadoIncidencia.as_view()),
 
     # Crud actas
-    path('incidencias/', IncidenciaListCreate.as_view()),
-    path('incidencias/<int:pk>/', IncidenciaDetail.as_view()),
+    path('actas/', ActaListCreate.as_view()),
+    path('actas/<int:pk>/', ActaDetail.as_view()),
 
     # Crud asistencia
     path('asistencia/', AsistenciaListCreate.as_view()),
     path('asistencia/<int:pk>/', AsistenciaDetail.as_view()),
 
     # Crud orden dia
-    path('incidencias/', OrdenDiaListCreate.as_view()),
-    path('incidencias/<int:pk>/', OrdenDiaDetail.as_view()),
+    path('puntos/', OrdenDiaListCreate.as_view()),
+    path('puntos/<int:pk>/', OrdenDiaDetail.as_view()),
 
     # Crud votacion
-    path('incidencias/', VotacionListCreate.as_view()),
-    path('incidencias/<int:pk>/', VotacionDetail.as_view()),
+    path('votaciones/', VotacionListCreate.as_view()),
+    path('votacines/<int:pk>/', VotacionDetail.as_view()),
 
     # Crud voto
-    path('incidencias/', VotoListCreate.as_view()),
-    path('incidencias/<int:pk>/', VotoDetail.as_view()),
+    path('votos/', VotoListCreate.as_view()),
+    path('votos/<int:pk>/', VotoDetail.as_view()),
 ]
