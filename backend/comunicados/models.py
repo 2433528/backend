@@ -14,6 +14,7 @@ class Comunicado(models.Model):
 
     class Meta:
         ordering=['-fecha_creacion']
+        permissions=(('gestor', 'EsGestor'),)
 
     def __str__(self):
         return f"{self.titulo}, {self.usuario_creador.nombre}"
@@ -23,6 +24,9 @@ class ComunicadoUsuario(models.Model):
     comunicado=models.ForeignKey(Comunicado, on_delete=models.CASCADE, related_name='comunicado_usuario')
     usuario=models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='comunicado_usuario')
     leido=models.BooleanField(default=False)
+
+    class Meta:
+        ordering=['-comunicado__fecha_creacion']
 
     def __str__(self):
         return f"{self.comunicado.titulo}, {'Leido' if self.leido else 'No leido'}"

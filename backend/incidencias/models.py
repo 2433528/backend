@@ -22,4 +22,4 @@ class Incidencia(models.Model):
         ordering=['-fecha_creacion']
 
     def __str__(self):
-        return f"{self.titulo}, {self.usuario_creador.nombre}"
+        return f"{self.titulo}"

@@ -7,9 +7,6 @@ urlpatterns = [
     path('logout/', LogoutView.as_view()),
     path('getuser/', get_user),
 
-    # Conseguir clave publica
-    path('api/webpush-key/', vapid_key),
-
     # Crud usuarios
     path('usuarios/', UsuarioListCreate.as_view()),
     path('usuarios/<int:pk>/', UsuarioDetail.as_view()),
@@ -30,6 +27,10 @@ urlpatterns = [
     path('comunicados/', ComunicadoListCreate.as_view()),
     path('comunicados/<int:pk>/', ComunicadoDetail.as_view()),
 
+    # Crud comunicado Usuario
+    path('comunicadousuario/', ComunicadoUsuarioListCreate.as_view()),
+    path('comunicadousuario/<int:pk>/', ComunicadoUsuarioDetail.as_view()),
+
     # Crud informacion
     path('informaciones/', InformacionListCreate.as_view()),
     path('informaciones/<int:pk>/', InformacionDetail.as_view()),
@@ -38,6 +39,10 @@ urlpatterns = [
     path('incidencias/', IncidenciaListCreate.as_view()),
     path('incidencias/<int:pk>/', IncidenciaDetail.as_view()),
     path('incicambiarestado/<int:pk>/', CambiarStadoIncidencia.as_view()),
+
+    # Crud convocatorias
+    path('convocatorias/', ConvocatoriaListCreate.as_view()),
+    path('convocatorias/<int:pk>/', ConvocatoriaDetail.as_view()),
 
     # Crud actas
     path('actas/', ActaListCreate.as_view()),
@@ -53,9 +58,14 @@ urlpatterns = [
 
     # Crud votacion
     path('votaciones/', VotacionListCreate.as_view()),
-    path('votacines/<int:pk>/', VotacionDetail.as_view()),
+    path('votaciones/<int:pk>/', VotacionDetail.as_view()),
 
     # Crud voto
     path('votos/', VotoListCreate.as_view()),
     path('votos/<int:pk>/', VotoDetail.as_view()),
+
+    # Comunicados sin leer
+    path('sinleer/', MensajesLeidos.as_view()),
+
+    path('usuarios_comunicado/', UsuariosEnviarComunicado.as_view()),
 ]

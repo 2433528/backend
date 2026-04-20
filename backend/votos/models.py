@@ -13,10 +13,6 @@ class Votacion(models.Model):
     apertura=models.DateTimeField(auto_now_add=True)
     cierre=models.DateTimeField(null=True, blank=True)
 
-    @property
-    def ha_finalizado(self):
-        return self.fecha_cierre is not None or not self.abierta
-    
     #Calcula si el resultado es favorable.
     def actualizar_resultado(self):        
         if self.voto_favor > self.voto_contra:
@@ -24,15 +20,10 @@ class Votacion(models.Model):
         else:
             self.favorable = False
         self.save()
-
-    # Cierra la votacion y registra ese momento
-    def cerrar_votacion(self):
-        self.abierta = False
-        self.cierre = datetime.datetime.now()
-        self.actualizar_resultado()
+        
     
     def __str__(self):
-        return f"{self.voto_favor}, {self.voto_contra}, {self.abstencion}"
+        return f"{self.punto.descripcion}, {self.favorable}"
     
 
 
