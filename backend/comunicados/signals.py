@@ -11,7 +11,7 @@ def notificar_nuevo_comunicado(sender, instance, created, **kwargs):
         payload = {
             "head": "Nuevo Comunicado 📢",
             "body": str(instance.comunidad.nombre or ""),
-            "url": "https://frontend-x64j.onrender.com" # Poner URL front
+            "url": "http://localhost:5173/" # Poner URL front
         }
 
         # 2. Obtenemos los usuarios que deben recibirla

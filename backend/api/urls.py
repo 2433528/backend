@@ -7,9 +7,15 @@ urlpatterns = [
     path('logout/', LogoutView.as_view()),
     path('getuser/', get_user),
 
+    # # Conseguir clave publica
+    # path('api/webpush-key/', vapid_key),
+
     # Crud usuarios
     path('usuarios/', UsuarioListCreate.as_view()),
     path('usuarios/<int:pk>/', UsuarioDetail.as_view()),
+
+    # Usuarios sin páginar
+    path('usuarios-asistencia/', UsuarioListAsistentes.as_view()),
 
     # Crud comunidades
     path('comunidades/', ComunidadListCreate.as_view()),

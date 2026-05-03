@@ -79,7 +79,7 @@ class LogoutView(views.APIView):
         return response
 
 
-# Clave vapid notificaciones
+# # Clave vapid notificaciones
 # @api_view(['GET'])
 # def vapid_key(request):
 #     return Response({
@@ -157,6 +157,25 @@ class UsuariosEnviarComunicado(views.APIView):
             serializer=ComunicadoDestinatarioSerializer(usuarios, many=True)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
+
+# Usuarios sin pagigar para asistencia
+class UsuarioListAsistentes(generics.ListAPIView):
+    permission_classes=[IsAuthenticated, EsGestor]
+    serializer_class=UsuarioSerializer
+        
+    def get_queryset(self):
+        queryset=Usuario.objects.all()
+        comunidad=self.request.query_params.get('comunidad')
+
+        if comunidad:
+            queryset=queryset.filter(propiedades__comunidad__id=comunidad).distinct()
+            return queryset
+        
+        return Usuario.objects.none()
+    
+
 
 # Crud comunidad
 class ComunidadListCreate(generics.ListCreateAPIView):
@@ -505,7 +524,6 @@ class AsistenciaListCreate(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         asistentes=serializer.validated_data.pop('asistentes')
-
         for asistente in asistentes:
             Asistencia.objects.update_or_create(
                 acta_id=asistente['acta'],

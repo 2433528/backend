@@ -189,8 +189,8 @@ class ComunicadoSerializer(serializers.ModelSerializer):
 
 
     def get_leido(self, comunicado):
-        valor=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).values_list('leido', flat=True).first()
-        return valor if valor is not None else False
+        valor=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).values_list('leido', flat=True)
+        return valor[0]
     
     def get_comunicadousuario(self, comunicado):
         comunicadousu=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).first()
@@ -323,16 +323,22 @@ class ConvocatoriaSerializer(serializers.ModelSerializer):
             return False
     
 class ActaSerializer(serializers.ModelSerializer):
-    pertenece_convocatoria=ConvocatoriaSerializer(source='convocatoria', read_only=True)    
+    pertenece_convocatoria=ConvocatoriaSerializer(source='convocatoria', read_only=True)
+    usuarios=UsuarioSerializer(many=True, read_only=True)  
 
     class Meta:
         model=Acta
         fields='__all__'
 
+
+
 class AsistenciaSerializer(serializers.ModelSerializer):
     asistentes=serializers.ListField(write_only=True)
+    usuario=UsuarioSerializer(read_only=True)
     
     class Meta:
         model=Asistencia
-        fields=['asistentes']
+        exclude=['acta']
+
+
 

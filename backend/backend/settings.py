@@ -36,7 +36,7 @@ ALLOWED_HOSTS = ['.vercel.app', '.onrender.com','localhost', '127.0.0.1']
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "https://backend-ashen-one-96.vercel.app",
+    #"https://backend-ashen-one-96.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://frontend-x64j.onrender.com",
