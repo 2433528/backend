@@ -14,7 +14,7 @@ class Comunicado(models.Model):
 
     class Meta:
         ordering=['-fecha_creacion']
-        permissions=(('gestor', 'EsGestor'),)
+        permissions=(('gestor', 'EsGestor'), ('presidente', 'EsPresidente'),)
 
     def __str__(self):
         return f"{self.titulo}, {self.usuario_creador.nombre}"

@@ -74,4 +74,8 @@ urlpatterns = [
     path('sinleer/', MensajesLeidos.as_view()),
 
     path('usuarios_comunicado/', UsuariosEnviarComunicado.as_view()),
+
+    # Subir CSV
+    path('comunidades/subir-csv/', ComunidadesFichero.as_view()),
+    path('propietarios/subir-csv/', PropietariosFichero.as_view()),
 ]

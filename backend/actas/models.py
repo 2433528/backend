@@ -26,7 +26,7 @@ class Convocatoria(models.Model):
     celebrada=models.BooleanField(default=False)
 
     class Meta:
-        ordering=['-fecha']
+        ordering=['-fecha', '-hora']
 
     def __str__(self):
         return f"{self.titulo}, {self.fecha}, {self.tipo}"
@@ -40,6 +40,9 @@ class Acta(models.Model):
     timestamp_inicio=models.DateTimeField(auto_now_add=True, null=True)  
     timestamp_fin=models.DateTimeField(null=True, blank=True)
     resumen=models.TextField(max_length=2000, null=True, blank=True)
+
+    class Meta:
+        ordering=['-timestamp_inicio']
 
     def __str__(self):
         return f"{self.convocatoria.titulo}, {'Resuelta' if self.resuelta else 'Pendiente'}"

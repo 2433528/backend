@@ -15,8 +15,11 @@ class Comunidad(models.Model):
     cif=models.CharField(max_length=9, help_text='Código de identificación fiscal', unique=True)
     usuarios=models.ManyToManyField(Usuario, related_name='comunidades', through='RolComunidad')
 
+    class Meta:
+        ordering=['nombre']
+
     def __str__(self):
-        return f"{self.nombre}, {self.calle}, {self.numero}, {self.cod_postal}, {self.localidad}"
+        return f"{self.nombre}, {self.calle}, {self.numero}, {self.cod_postal}, {self.localidad}, {str(self.cif)}"
     
 
 class Propiedad(models.Model):

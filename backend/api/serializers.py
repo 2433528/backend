@@ -108,7 +108,7 @@ class ComunidadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model=Comunidad
-        fields='__all__'
+        exclude=['usuarios']
 
 
 class PropeidadSerializer(serializers.ModelSerializer):
@@ -341,4 +341,136 @@ class AsistenciaSerializer(serializers.ModelSerializer):
         exclude=['acta']
 
 
+import csv
+import io
+from rest_framework import serializers
+from django.db import transaction
 
+
+class ComunidadFicheroSerializer(serializers.Serializer):
+    archivo = serializers.FileField()
+
+    def validate_archivo(self, value):
+        if value.size > (3 * 1024 * 1024):
+            raise serializers.ValidationError("El archivo supera el límite permitido de 3 MB.")
+        
+        nombre_archivo = value.name
+        if not nombre_archivo.endswith('.csv'):
+            raise serializers.ValidationError("El archivo debe tener la extensión .csv")
+        
+        tipos_validos = ['text/csv', 'application/csv', 'application/vnd.ms-excel', 'text/plain']
+        if value.content_type not in tipos_validos:
+            raise serializers.ValidationError("El formato del archivo no es un CSV válido.")
+            
+        return value
+    
+    def save(self):
+        archivo = self.validated_data['archivo']
+        
+        archivo_texto = io.StringIO(archivo.read().decode('utf-8-sig'))
+        lector_csv = csv.DictReader(archivo_texto)
+       
+        with transaction.atomic():
+            for fila in lector_csv:
+                # Evita duplicados
+                if Comunidad.objects.filter(cif=fila['cif']).exists():
+                    raise serializers.ValidationError(
+                        f"Error en el CSV: La comunidad con CIF {fila['cif']} ya está registrada."
+                    )
+
+                comunidad=Comunidad.objects.create(
+                    nombre=fila['nombre'],
+                    calle=fila['calle'],
+                    numero=int(fila['numero']) if fila.get('numero') else None,
+                    cod_postal=fila['cod_postal'],
+                    localidad=fila['localidad'],
+                    provincia=fila.get('provincia', ''),
+                    cif=fila['cif'],
+                )
+    
+                RolComunidad.objects.create(
+                    usuario=self.context.get('request').user.usuario,
+                    comunidad=comunidad,
+                    rol='gestor'
+                )             
+                
+        return 
+
+
+class PropietariosFicheroSerializer(serializers.Serializer):
+    archivo = serializers.FileField()
+
+    def validate_archivo(self, value):
+        if value.size > (3 * 1024 * 1024):
+            raise serializers.ValidationError("El archivo supera el límite permitido de 3 MB.")
+        
+        nombre_archivo = value.name
+        if not nombre_archivo.endswith('.csv'):
+            raise serializers.ValidationError("El archivo debe tener la extensión .csv")
+        
+        tipos_validos = ['text/csv', 'application/csv', 'application/vnd.ms-excel', 'text/plain']
+        if value.content_type not in tipos_validos:
+            raise serializers.ValidationError("El formato del archivo no es un CSV válido.")
+            
+        return value
+    
+
+    def save(self):
+        archivo = self.validated_data['archivo']
+        
+        archivo_texto = io.StringIO(archivo.read().decode('utf-8-sig'))
+        lector_csv = csv.DictReader(archivo_texto)
+        
+
+        with transaction.atomic():
+            for fila in lector_csv:
+                try:
+                    comunidad = Comunidad.objects.get(id=fila['comunidad_id'])
+                except:
+                    raise serializers.ValidationError(
+                        f"La comunidad con ID {fila.get('comunidad_id')} no existe o falta en el CSV."
+                    )
+
+                user,created=User.objects.get_or_create(
+                    username=fila['dni'],
+                )
+
+                if created:
+                    user.set_password('Comunidad12345')
+                    user.save()
+
+                # Crear o recuperar el usuario, sirve para evitar repeticiones. Creado almacena true o false.
+                usuario, created= Usuario.objects.get_or_create(
+                    user=user,
+                    dni=fila['dni'],                   
+                    nombre=fila['nombre'],
+                    apellido1=fila['apellido1'],
+                    apellido2=fila.get('apellido2', ''),
+                    telefono=fila.get('telefono', ''),
+                    email=fila['email'],
+                    
+                )
+                
+                # Crear la propiedad asociada
+                num_letra = fila['num_letra'].upper().strip()
+                propiedad,created=Propiedad.objects.get_or_create(
+                    num_letra=num_letra,
+                    comunidad=comunidad,
+                    # Al poner el usuario aquí no salta la regla de único
+                    defaults={
+                        "usuario": usuario
+                    }
+                )
+
+                if not created:
+                    propiedad.usuario = usuario
+                    propiedad.save()
+                
+                RolComunidad.objects.get_or_create(
+                usuario=usuario,
+                comunidad=comunidad,
+                defaults={'rol': 'propietario'}
+                
+                ) 
+                
+        return

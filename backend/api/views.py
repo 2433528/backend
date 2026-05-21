@@ -148,7 +148,7 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 class UsuariosEnviarComunicado(views.APIView):
-    permission_classes=[IsAuthenticated, EsGestor]
+    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     def get(self, request):
         comunidad_id=request.query_params.get('comunidad')
 
@@ -162,7 +162,7 @@ class UsuariosEnviarComunicado(views.APIView):
 
 # Usuarios sin pagigar para asistencia
 class UsuarioListAsistentes(generics.ListAPIView):
-    permission_classes=[IsAuthenticated, EsGestor]
+    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     serializer_class=UsuarioSerializer
         
     def get_queryset(self):
@@ -178,15 +178,25 @@ class UsuarioListAsistentes(generics.ListAPIView):
 
 
 # Crud comunidad
-class ComunidadListCreate(generics.ListCreateAPIView):
-    queryset=Comunidad.objects.all()
+class ComunidadListCreate(generics.ListCreateAPIView):    
     serializer_class=ComunidadSerializer
+    pagination_class=MiPaginacion
 
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAuthenticated(), EsGestor()]
         
         return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        queryset=Comunidad.objects.all()
+        cif=self.request.query_params.get('cif')
+
+        if cif:
+            queryset=queryset.filter(cif=cif).distinct()
+            return queryset
+        
+        return queryset
 
 class ComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Comunidad.objects.all()
@@ -287,7 +297,7 @@ class ComunicadoListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -298,7 +308,7 @@ class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -319,14 +329,14 @@ class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud ComunicadoUsuario
 class ComunicadoUsuarioListCreate(generics.ListCreateAPIView):
-    permission_classes=[IsAuthenticated, EsGestor]
+    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     queryset=ComunicadoUsuario.objects.all()
     serializer_class=ComunicadoUsuarioSerializer
     pagination_class=MiPaginacion
     
 
 class ComunicadoUsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes=[IsAuthenticated, EsGestor]
+    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     queryset=ComunicadoUsuario.objects.all()
     serializer_class=ComunicadoUsuarioSerializer
 
@@ -337,7 +347,7 @@ class InformacionListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -357,7 +367,7 @@ class InformacionDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -434,7 +444,7 @@ class ConvocatoriaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -467,7 +477,7 @@ class ConvocatoriaDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -490,13 +500,17 @@ class ActaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
     def get_queryset(self):
         queryset=Acta.objects.all()
         comunidad=self.request.query_params.get('comunidad')
+        id_convocatoria=self.request.query_params.get('id')
+
+        if id_convocatoria:
+            return queryset.filter(convocatoria__id=id_convocatoria)
        
         if comunidad:
             queryset=queryset.filter(comunidad__id=comunidad)
@@ -508,6 +522,9 @@ class ActaListCreate(generics.ListCreateAPIView):
 class ActaDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Acta.objects.all()
     serializer_class=ActaSerializer
+
+    def get_queryset(self):
+        return super().get_queryset()
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
@@ -546,7 +563,7 @@ class OrdenDiaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
     
@@ -557,7 +574,7 @@ class OrdenDiaDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor()]
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
 
@@ -625,3 +642,40 @@ class MensajesLeidos(views.APIView):
 
         return Response({"sinLeer": sin_leer})
 
+
+from rest_framework.parsers import MultiPartParser
+
+class ComunidadesFichero(views.APIView):
+    permission_classes=[IsAuthenticated, EsGestor]
+    
+    # Se encarga de leer y entender peticiones HTTP que contienen archivos binarios. Si no se añade django ignora los archivos.
+    parser_classes=[MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ComunidadFicheroSerializer(data=request.FILES, context={'request': request})
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"mensaje": f"Se han procesado los registros correctamente."}, 
+                status=status.HTTP_201_CREATED
+            )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PropietariosFichero(views.APIView):
+    permission_classes=[IsAuthenticated, EsGestor]
+    parser_classes=[MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        serializer = PropietariosFicheroSerializer(data=request.FILES)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"mensaje": f"Se han procesado los registros correctamente."}, 
+                status=status.HTTP_201_CREATED
+            )
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
