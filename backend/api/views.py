@@ -93,7 +93,8 @@ def get_user(request):
     return Response({
         'user_id': str(request.user.usuario.id) or '',
         'username':request.user.username,
-        'nombre':request.user.usuario.nombre
+        'nombre':request.user.usuario.nombre,
+        'gestor_fincas':request.user.usuario.gestor_fincas
     })
 
 
@@ -133,10 +134,10 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
         if comunidad_id:
             item=RolComunidad.objects.filter(usuario=usuario, comunidad_id=comunidad_id).exclude(rol='gestor').first()
         
-        if item:            
-            item.rol=nuevo_rol
-            item.moroso=nuevo_moroso
-            item.save()
+            if item:            
+                item.rol=nuevo_rol
+                item.moroso=nuevo_moroso
+                item.save()
 
         if not password:       
             return serializer.save(password=usuario.user.password)
@@ -160,7 +161,7 @@ class UsuariosEnviarComunicado(views.APIView):
         
 
 
-# Usuarios sin pagigar para asistencia
+# Usuarios sin paginar para asistencia
 class UsuarioListAsistentes(generics.ListAPIView):
     permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     serializer_class=UsuarioSerializer
@@ -173,7 +174,7 @@ class UsuarioListAsistentes(generics.ListAPIView):
             queryset=queryset.filter(propiedades__comunidad__id=comunidad).distinct()
             return queryset
         
-        return Usuario.objects.none()
+        return queryset.none()
     
 
 
@@ -290,8 +291,7 @@ class RolComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 # Crud comunicado
-class ComunicadoListCreate(generics.ListCreateAPIView):
-    queryset=Comunicado.objects.all() 
+class ComunicadoListCreate(generics.ListCreateAPIView):    
     serializer_class=ComunicadoSerializer
     pagination_class=MiPaginacion
 
@@ -300,6 +300,21 @@ class ComunicadoListCreate(generics.ListCreateAPIView):
             return [IsAuthenticated(), EsGestor(), EsPresidente()]
         
         return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        queryset=Comunicado.objects.all() 
+        comunidad_id=self.request.query_params.get('comunidad')
+        usuario=self.request.user.usuario
+
+        if comunidad_id:
+            gestor=RolComunidad.objects.filter(comunidad__id=comunidad_id, usuario=usuario, rol='gestor').exists()
+            presidente=RolComunidad.objects.filter(comunidad__id=comunidad_id, usuario=usuario, rol='presidente').exists()
+            if gestor or presidente:
+                return queryset.filter(comunidad__id=comunidad_id)
+        
+            return queryset.filter(comunidad__id=comunidad_id, usuarios=usuario)
+        
+        return queryset.none()
 
 
 class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -329,16 +344,28 @@ class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud ComunicadoUsuario
 class ComunicadoUsuarioListCreate(generics.ListCreateAPIView):
-    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     queryset=ComunicadoUsuario.objects.all()
     serializer_class=ComunicadoUsuarioSerializer
     pagination_class=MiPaginacion
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+        
+        return [IsAuthenticated()] 
     
 
 class ComunicadoUsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
     queryset=ComunicadoUsuario.objects.all()
     serializer_class=ComunicadoUsuarioSerializer
+    
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'DELETE']:
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+        
+        return [IsAuthenticated()]
+
+    
 
 
 # Crud informacion
@@ -535,9 +562,18 @@ class ActaDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud asistencia
 class AsistenciaListCreate(generics.ListCreateAPIView):
-    permission_classes=[IsAuthenticated, EsGestor]
-    queryset=Asistencia.objects.all()
+    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]    
     serializer_class=AsistenciaSerializer
+
+    def get_queryset(self):
+        queryset=Asistencia.objects.all()
+        comunidad_id=self.request.query_params.get('comunidad')
+        acta_id=self.request.query_params.get('acta_id')
+
+        if comunidad_id and acta_id:
+            return queryset.filter(acta__comunidad__id=comunidad_id, acta__id=acta_id).distinct()
+        
+        return queryset.none()
 
     def perform_create(self, serializer):
         asistentes=serializer.validated_data.pop('asistentes')
@@ -679,3 +715,50 @@ class PropietariosFichero(views.APIView):
             )
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AvisoListCreate(generics.ListCreateAPIView):
+    serializer_class=AvisoSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+        
+        return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        queryset=Aviso.objects.all()
+        comunidad=self.request.query_params.get('comunidad')
+
+        if comunidad:
+            return queryset.filter(comunidad__id=comunidad, avisos_usuario__usuario=self.request.user.usuario, avisos_usuario__visto=False).distinct()
+
+        return queryset.none()
+
+class AvisoUsuarioMarcarVisto(views.APIView):
+    permission_classes=[IsAuthenticated]
+    
+    def patch(self, request, pk):
+        
+        aviso_usuario = AvisoUsuario.objects.filter(aviso__id=pk, usuario=request.user.usuario)
+
+        if aviso_usuario:
+
+            aviso = aviso_usuario[0].aviso
+
+            for av in aviso_usuario:
+                av.delete()
+
+            if not AvisoUsuario.objects.filter(aviso=aviso).exists():
+                aviso.delete()
+
+            return Response(
+                {'message': 'Aviso marcado como visto'},
+                status=status.HTTP_200_OK
+            )
+        
+        return Response(
+            {'message': 'No se encontraron avisos'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    

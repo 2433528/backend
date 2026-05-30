@@ -110,6 +110,16 @@ class ComunidadSerializer(serializers.ModelSerializer):
         model=Comunidad
         exclude=['usuarios']
 
+    
+    def save(self, **kwargs):
+        comunidad=super().save(**kwargs)
+        RolComunidad.objects.create(
+            usuario=self.context.get('request').user.usuario,
+            comunidad=comunidad,
+            rol='gestor'
+        )   
+
+        return
 
 class PropeidadSerializer(serializers.ModelSerializer):
     usuario_dni = serializers.CharField(write_only=True)
@@ -159,9 +169,16 @@ class MorosoSerializer(serializers.ModelSerializer):
 
 
 class ComunicadoDestinatarioSerializer(serializers.ModelSerializer):
+    propiedades=serializers.SerializerMethodField()
     class Meta:
         model=Usuario
-        fields=['id', 'nombre', 'apellido1', 'apellido2', 'dni']
+        fields=['id', 'nombre', 'apellido1', 'apellido2', 'dni', 'propiedades']
+
+    def get_propiedades(self, obj):
+        return [
+            p.num_letra
+            for p in obj.propiedades.all().distinct()
+        ]
 
 
 class ComunicadoUsuarioSerializer(serializers.ModelSerializer):
@@ -183,14 +200,21 @@ class ComunicadoSerializer(serializers.ModelSerializer):
         fields='__all__'
 
     def get_usuarios(self, comunicado):
-        relaciones =ComunicadoUsuario.objects.filter(comunicado=comunicado).distinct().values('usuario__nombre', 'usuario__apellido1', 'usuario__apellido2', 'usuario__dni', 'leido')
-
-        return [{'nombre':f'{rel['usuario__nombre']} {rel['usuario__apellido1']} {rel['usuario__apellido2']}', 'dni':rel['usuario__dni'], 'leido':rel['leido']} for rel in relaciones]
-
+        datos=[]
+        relaciones=ComunicadoUsuario.objects.filter(comunicado=comunicado).distinct().values('usuario__nombre', 'usuario__apellido1', 'usuario__apellido2', 'usuario__dni', 'leido')
+        for rel in relaciones:
+            datos.append({
+                'nombre':f'{rel['usuario__nombre']} {rel['usuario__apellido1']} {rel['usuario__apellido2']}', 
+                'dni':rel['usuario__dni'], 
+                'leido':rel['leido'],
+                'propiedades':', '.join(list(Propiedad.objects.filter(usuario__dni=rel['usuario__dni']).values_list('num_letra', flat=True)))
+            })
+        
+        return datos
 
     def get_leido(self, comunicado):
-        valor=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).values_list('leido', flat=True)
-        return valor[0]
+        valor=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).values_list('leido', flat=True).distinct().first()
+        return valor
     
     def get_comunicadousuario(self, comunicado):
         comunicadousu=ComunicadoUsuario.objects.filter(comunicado=comunicado, usuario=self.context['request'].user.usuario).first()
@@ -217,23 +241,31 @@ class ComunicadoSerializer(serializers.ModelSerializer):
     
 
 class InformacionSerializer(serializers.ModelSerializer):
-    fecha_creacion = serializers.DateTimeField(format="%d-%m-%Y", read_only=True)
+    fecha_bonita = serializers.DateTimeField(source='fecha_creacion', format="%d-%m-%Y", read_only=True)
     class Meta:
         model=Informacion
         fields='__all__'
 
 
 class IncidenciaSerializer(serializers.ModelSerializer):
-    fecha_creacion = serializers.DateTimeField(format="%d-%m-%Y", read_only=True)
+    fecha_bonita = serializers.DateTimeField(source='fecha_creacion', format="%d-%m-%Y", read_only=True)
     usuario_creador = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model=Incidencia
         fields='__all__'
 
-    def get_usuario_creador(self, incidencia):
+    def get_usuario_creador(self, incidencia):        
         if incidencia:
-            return {'nombre':f"{incidencia.usuario_creador.nombre} {incidencia.usuario_creador.apellido1} {incidencia.usuario_creador.apellido2 if incidencia.usuario_creador.apellido2 else ''}", 'dni':incidencia.usuario_creador.dni}
+            propiedades=Propiedad.objects.filter(usuario=incidencia.usuario_creador).values_list('num_letra', flat=True)
+            return {'nombre':f"""
+                    {incidencia.usuario_creador.nombre} 
+                    {incidencia.usuario_creador.apellido1} 
+                    {incidencia.usuario_creador.apellido2 if incidencia.usuario_creador.apellido2 else ''}""", 
+                    'dni':incidencia.usuario_creador.dni,
+                    'propiedades':', '.join(propiedades)
+                    }
+
         return None
     
 class CambiarEstadoIncidenciaSerializer(serializers.ModelSerializer):
@@ -425,7 +457,7 @@ class PropietariosFicheroSerializer(serializers.Serializer):
         with transaction.atomic():
             for fila in lector_csv:
                 try:
-                    comunidad = Comunidad.objects.get(id=fila['comunidad_id'])
+                    comunidad = Comunidad.objects.get(cif=fila['cif_comunidad'])
                 except:
                     raise serializers.ValidationError(
                         f"La comunidad con ID {fila.get('comunidad_id')} no existe o falta en el CSV."
@@ -466,11 +498,18 @@ class PropietariosFicheroSerializer(serializers.Serializer):
                     propiedad.usuario = usuario
                     propiedad.save()
                 
-                RolComunidad.objects.get_or_create(
-                usuario=usuario,
-                comunidad=comunidad,
-                defaults={'rol': 'propietario'}
-                
-                ) 
+                RolComunidad.objects.create(
+                    usuario=usuario,
+                    comunidad=comunidad,
+                    rol='propietario'
+                )  
                 
         return
+    
+class AvisoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Aviso
+        fields='__all__'
+        
+        
+    

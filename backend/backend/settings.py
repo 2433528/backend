@@ -101,7 +101,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=45),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
     "SIGNING_KEY": SECRET_KEY,
@@ -110,7 +110,7 @@ SIMPLE_JWT = {
     'AUTH_COOKIE': 'refresh_token',  # Nombre de la cookie
     'AUTH_COOKIE_HTTP_ONLY': True,  # Impide que JS acceda a ella
     'AUTH_COOKIE_PATH': '/',         # Disponible en toda la app
-    'AUTH_COOKIE_SAMESITE': 'Lax',   # Protección CSRF
+    'AUTH_COOKIE_SAMESITE': 'None',   # Protección CSRF
     'AUTH_COOKIE_SECURE': True,      # Solo por HTTPS
 }
 

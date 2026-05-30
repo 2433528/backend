@@ -73,9 +73,15 @@ urlpatterns = [
     # Comunicados sin leer
     path('sinleer/', MensajesLeidos.as_view()),
 
+    # Destinatarios comunicados
     path('usuarios_comunicado/', UsuariosEnviarComunicado.as_view()),
 
     # Subir CSV
     path('comunidades/subir-csv/', ComunidadesFichero.as_view()),
     path('propietarios/subir-csv/', PropietariosFichero.as_view()),
+
+    # Aviso Usuario
+    path('avisos/', AvisoListCreate.as_view()),
+    path('avisos/<int:pk>/visto/',AvisoUsuarioMarcarVisto.as_view(),
+)
 ]

@@ -10,7 +10,8 @@ class Usuario(models.Model):
     apellido2=models.CharField(max_length=200, null=True, blank=True)
     dni=models.CharField(max_length=9, unique=True)
     telefono=models.CharField(max_length=200, null=True, blank=True)
-    email=models.EmailField(null=True, blank=True)    
+    email=models.EmailField(null=True, blank=True)
+    gestor_fincas=models.BooleanField(default=False)  
 
     def __str__(self):
         return f"{self.nombre}, {self.apellido1}, {self.apellido2}"

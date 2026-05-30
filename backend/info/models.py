@@ -16,3 +16,43 @@ class Informacion(models.Model):
 
     def __str__(self):
         return f"{self.titulo}"
+    
+
+class Aviso(models.Model):
+    comunidad = models.ForeignKey(Comunidad, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    id_elemento=models.PositiveSmallIntegerField(null=True, blank=True)
+
+    OPCIONES=[
+        ('incidencia', 'incidencia'),
+        ('convocatoria', 'convocatoria'),
+        ('info', 'info'),
+        ('acta', 'acta'),
+        ('general', 'general'),
+    ]
+
+    tipo = models.CharField(max_length=50, choices=OPCIONES, default='general')
+
+    def __str__(self):
+        return f"{self.comunidad.nombre} {self.tipo}"
+    
+
+
+
+class AvisoUsuario(models.Model):
+    aviso = models.ForeignKey(
+        Aviso,
+        on_delete=models.CASCADE,
+        related_name='avisos_usuario'
+    )
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name='avisos_usuario'
+    )
+
+    visto = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.usuario.nombre} {self.aviso.tipo}"
