@@ -34,9 +34,9 @@ class MyTokenObtainPairView(TokenObtainPairView):
                 key='refresh_token',
                 value=refresh_token,
                 httponly=True,
-                secure=False,
-                samesite='Lax',
-                path='/api/refresh/',
+                secure=True,
+                samesite='None',
+                path='/',
                 max_age=3600 * 24 * 7 # 7 días de duración
             )
 
