@@ -74,7 +74,7 @@ class LogoutView(views.APIView):
         }, status=status.HTTP_200_OK)
 
         # Borramos la cookie del navegador
-        response.delete_cookie('refresh_token', path='/api/refresh/')
+        response.delete_cookie('refresh_token', path='/')
 
         return response
 
@@ -260,6 +260,10 @@ class RolComunidadListCreate(generics.ListCreateAPIView):
         queryset=RolComunidad.objects.all()
         usuario_id=self.request.query_params.get('user')
         comunidad=self.request.query_params.get('comunidad')
+
+        if usuario_id and comunidad:
+            queryset=queryset.filter(usuario__id=usuario_id, comunidad__id=comunidad)
+            return queryset
 
         if usuario_id:
             queryset=queryset.filter(usuario__id=usuario_id)

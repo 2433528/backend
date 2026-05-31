@@ -23,7 +23,7 @@ class Comunidad(models.Model):
     
 
 class Propiedad(models.Model):
-    num_letra=models.CharField(max_length=5)
+    num_letra=models.CharField(max_length=10)
     usuario=models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='propiedades')
     comunidad=models.ForeignKey(Comunidad, on_delete=models.CASCADE, related_name='propiedades')
 
