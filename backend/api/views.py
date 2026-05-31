@@ -74,7 +74,7 @@ class LogoutView(views.APIView):
         }, status=status.HTTP_200_OK)
 
         # Borramos la cookie del navegador
-        response.delete_cookie('refresh_token', path='/')
+        response.delete_cookie(key='refresh_token', path='/', samesite='None')
 
         return response
 
