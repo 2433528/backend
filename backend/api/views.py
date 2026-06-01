@@ -115,7 +115,7 @@ class UsuarioListCreate(generics.ListCreateAPIView):
             return queryset
 
         if comunidad:
-            queryset=queryset.filter(propiedades__comunidad__id=comunidad, propiedades__usuario__isnull=False).distinct()
+            queryset=queryset.filter(propiedades__comunidad__id=comunidad).distinct()
             return queryset
         
         return Usuario.objects.none()
