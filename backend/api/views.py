@@ -110,8 +110,8 @@ class UsuarioListCreate(generics.ListCreateAPIView):
         comunidad=self.request.query_params.get('comunidad')
         dni=self.request.query_params.get('dni')
 
-        if dni:
-            queryset=queryset.filter(dni=dni)
+        if dni and comunidad:
+            queryset=queryset.filter(dni=dni, propiedades__comunidad__id=comunidad).first()
             return queryset
 
         if comunidad:
