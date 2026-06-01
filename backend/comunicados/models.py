@@ -17,7 +17,11 @@ class Comunicado(models.Model):
         permissions=(('gestor', 'EsGestor'), ('presidente', 'EsPresidente'),)
 
     def __str__(self):
-        return f"{self.titulo}, {self.usuario_creador.nombre}"
+        if self.usuario_creador:
+            usuario_nombre = self.usuario_creador.nombre
+        else:
+            usuario_nombre = "Sin usuario"
+        return f"{self.titulo}, {usuario_nombre}"
 
 
 class ComunicadoUsuario(models.Model):

@@ -8,3 +8,12 @@ class EsGestor(BasePermission):
 class EsPresidente(BasePermission):
     def has_permission(self, request, view):
         return request.user.has_perm('comunicados.presidente')
+    
+
+class EsGestorOPresidente(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.has_perm('comunicados.gestor')
+            or
+            request.user.has_perm('comunicados.presidente')
+        )

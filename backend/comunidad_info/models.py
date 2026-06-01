@@ -19,7 +19,7 @@ class Comunidad(models.Model):
         ordering=['nombre']
 
     def __str__(self):
-        return f"{self.nombre}, {self.calle}, {self.numero}, {self.cod_postal}, {self.localidad}, {str(self.cif)}"
+        return f"{self.nombre or ''}, {self.calle or ''}, {self.numero or ''}, {self.cod_postal or ''}, {self.localidad or ''}, {str(self.cif or '')}"
     
 
 class Propiedad(models.Model):
@@ -91,5 +91,5 @@ class RolComunidad(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.rol}, {self.usuario.nombre}, {self.comunidad.nombre}"
+        return f"{self.rol or ''}, {getattr(self.usuario, 'nombre', '')}, {getattr(self.comunidad, 'nombre', '')}"
     

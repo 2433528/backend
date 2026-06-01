@@ -112,14 +112,17 @@ class ComunidadSerializer(serializers.ModelSerializer):
 
     
     def save(self, **kwargs):
+        nueva = self.instance is None
         comunidad=super().save(**kwargs)
-        RolComunidad.objects.create(
-            usuario=self.context.get('request').user.usuario,
-            comunidad=comunidad,
-            rol='gestor'
-        )   
 
-        return
+        if nueva:
+            RolComunidad.objects.create(
+                usuario=self.context.get('request').user.usuario,
+                comunidad=comunidad,
+                rol='gestor'
+            )   
+
+        return comunidad
 
 class PropeidadSerializer(serializers.ModelSerializer):
     usuario_dni = serializers.CharField(write_only=True)
@@ -175,9 +178,10 @@ class ComunicadoDestinatarioSerializer(serializers.ModelSerializer):
         fields=['id', 'nombre', 'apellido1', 'apellido2', 'dni', 'propiedades']
 
     def get_propiedades(self, obj):
+        comunidad = self.context['request'].query_params.get('comunidad')
         return [
             p.num_letra
-            for p in obj.propiedades.all().distinct()
+            for p in obj.propiedades.all().filter(comunidad_id=comunidad)
         ]
 
 
@@ -207,7 +211,7 @@ class ComunicadoSerializer(serializers.ModelSerializer):
                 'nombre':f'{rel['usuario__nombre']} {rel['usuario__apellido1']} {rel['usuario__apellido2']}', 
                 'dni':rel['usuario__dni'], 
                 'leido':rel['leido'],
-                'propiedades':', '.join(list(Propiedad.objects.filter(usuario__dni=rel['usuario__dni']).values_list('num_letra', flat=True)))
+                'propiedades':', '.join(list(Propiedad.objects.filter(usuario__dni=rel['usuario__dni']).values_list('num_letra', flat=True).distinct()))
             })
         
         return datos
@@ -257,7 +261,8 @@ class IncidenciaSerializer(serializers.ModelSerializer):
 
     def get_usuario_creador(self, incidencia):        
         if incidencia:
-            propiedades=Propiedad.objects.filter(usuario=incidencia.usuario_creador).values_list('num_letra', flat=True)
+            comunidad=self.context['request'].query_params.get('comunidad')
+            propiedades=Propiedad.objects.filter(usuario=incidencia.usuario_creador, comunidad__id=comunidad).values_list('num_letra', flat=True).distinct()
             return {'nombre':f"""
                     {incidencia.usuario_creador.nombre} 
                     {incidencia.usuario_creador.apellido1} 
@@ -472,15 +477,16 @@ class PropietariosFicheroSerializer(serializers.Serializer):
                     user.save()
 
                 # Crear o recuperar el usuario, sirve para evitar repeticiones. Creado almacena true o false.
-                usuario, created= Usuario.objects.get_or_create(
+                usuario, created = Usuario.objects.update_or_create(
                     user=user,
-                    dni=fila['dni'],                   
-                    nombre=fila['nombre'],
-                    apellido1=fila['apellido1'],
-                    apellido2=fila.get('apellido2', ''),
-                    telefono=fila.get('telefono', ''),
-                    email=fila['email'],
-                    
+                    defaults={
+                        'dni': fila['dni'],
+                        'nombre': fila['nombre'],
+                        'apellido1': fila['apellido1'],
+                        'apellido2': fila.get('apellido2', ''),
+                        'telefono': fila.get('telefono', ''),
+                        'email': fila['email'],
+                    }
                 )
                 
                 # Crear la propiedad asociada
@@ -498,11 +504,18 @@ class PropietariosFicheroSerializer(serializers.Serializer):
                     propiedad.usuario = usuario
                     propiedad.save()
                 
-                RolComunidad.objects.create(
-                    usuario=usuario,
-                    comunidad=comunidad,
-                    rol='propietario'
-                )  
+                if not RolComunidad.objects.filter(usuario=usuario, comunidad=comunidad, rol='gestor').exists():
+                    RolComunidad.objects.get_or_create(
+                        usuario=usuario,
+                        comunidad=comunidad,
+                        defaults={'rol': 'propietario'}
+                    )
+                else:
+                    RolComunidad.objects.create(
+                        usuario=usuario,
+                        comunidad=comunidad,
+                        rol='propietario'
+                    )
                 
         return
     

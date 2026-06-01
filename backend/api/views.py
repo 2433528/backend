@@ -94,6 +94,7 @@ def get_user(request):
         'user_id': str(request.user.usuario.id) or '',
         'username':request.user.username,
         'nombre':request.user.usuario.nombre,
+        'dni':request.user.usuario.dni,
         'gestor_fincas':request.user.usuario.gestor_fincas
     })
 
@@ -114,7 +115,7 @@ class UsuarioListCreate(generics.ListCreateAPIView):
             return queryset
 
         if comunidad:
-            queryset=queryset.filter(propiedades__comunidad__id=comunidad).distinct()
+            queryset=queryset.filter(propiedades__comunidad__id=comunidad, propiedades__usuario__isnull=False).distinct()
             return queryset
         
         return Usuario.objects.none()
@@ -134,7 +135,16 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
         if comunidad_id:
             item=RolComunidad.objects.filter(usuario=usuario, comunidad_id=comunidad_id).exclude(rol='gestor').first()
         
-            if item:            
+            if item:
+                if nuevo_rol=='presidente':
+                    grupo=Group.objects.get(name="Presidentes")
+                    anterior=RolComunidad.objects.filter(comunidad_id=comunidad_id, rol='presidente').first()
+                    if anterior:
+                        anterior.rol='propietario'
+                        anterior.save()                        
+                        anterior.usuario.user.groups.remove(grupo)                        
+                
+                    usuario.user.groups.add(grupo)
                 item.rol=nuevo_rol
                 item.moroso=nuevo_moroso
                 item.save()
@@ -147,15 +157,25 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
         usuario.user.save()
         serializer.save(password=hash_password)
 
+    def perform_destroy(self, instance):
+        usuario=instance
+        comunidad=self.request.query_params.get('comunidad')
+
+        RolComunidad.objects.filter(comunidad__id=comunidad, usuario=usuario).exclude(rol='gestor').delete()
+        propiedades=Propiedad.objects.filter(comunidad__id=comunidad, usuario=usuario)
+        for p in propiedades:
+            p.usuario=None
+            p.save()
+
 
 class UsuariosEnviarComunicado(views.APIView):
-    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
+    permission_classes=[IsAuthenticated, EsGestorOPresidente]
     def get(self, request):
         comunidad_id=request.query_params.get('comunidad')
 
         if comunidad_id:
             usuarios=Usuario.objects.filter(propiedades__comunidad__id=comunidad_id).distinct()
-            serializer=ComunicadoDestinatarioSerializer(usuarios, many=True)
+            serializer=ComunicadoDestinatarioSerializer(usuarios, many=True, context={'request': request})
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         
@@ -163,7 +183,7 @@ class UsuariosEnviarComunicado(views.APIView):
 
 # Usuarios sin paginar para asistencia
 class UsuarioListAsistentes(generics.ListAPIView):
-    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]
+    permission_classes=[IsAuthenticated, EsGestorOPresidente]
     serializer_class=UsuarioSerializer
         
     def get_queryset(self):
@@ -194,10 +214,10 @@ class ComunidadListCreate(generics.ListCreateAPIView):
         cif=self.request.query_params.get('cif')
 
         if cif:
-            queryset=queryset.filter(cif=cif).distinct()
+            queryset=queryset.filter(cif=cif, roles__usuario=self.request.user.usuario, roles__rol='gestor').distinct()
             return queryset
         
-        return queryset
+        return queryset.filter(roles__usuario=self.request.user.usuario, roles__rol='gestor')
 
 class ComunidadDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset=Comunidad.objects.all()
@@ -244,6 +264,17 @@ class PropiedadDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes=[IsAuthenticated, EsGestor]
     queryset=Propiedad.objects.all()
     serializer_class=PropeidadSerializer
+
+    def perform_update(self, serializer):
+        usuario=Usuario.objects.get(dni=serializer.validated_data['usuario_dni'])
+        comunidad=serializer.validated_data['comunidad']
+        propiedad=self.get_object()
+
+        if not RolComunidad.objects.filter(usuario=usuario, comunidad=comunidad, rol='propietario').exists():
+            RolComunidad.objects.create(usuario=usuario, comunidad=comunidad, rol='propietario')
+        
+        propiedad.usuario=usuario
+        propiedad.save()
 
 
 # Crud RolComunidad
@@ -301,7 +332,7 @@ class ComunicadoListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
     
@@ -327,7 +358,7 @@ class ComunicadoDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -354,7 +385,7 @@ class ComunicadoUsuarioListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()] 
     
@@ -365,7 +396,7 @@ class ComunicadoUsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
     
     def get_permissions(self):
         if self.request.method in ['PUT', 'DELETE']:
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -378,7 +409,7 @@ class InformacionListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -398,7 +429,7 @@ class InformacionDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -407,12 +438,13 @@ class InformacionDetail(generics.RetrieveUpdateDestroyAPIView):
 class IncidenciaListCreate(generics.ListCreateAPIView):  
     serializer_class=IncidenciaSerializer
     pagination_class=MiPaginacion
+    permission_classes=[IsAuthenticated]
 
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor()]
+    # def get_permissions(self):
+    #     if self.request.method == 'POST':
+    #         return [IsAuthenticated(), EsGestor()]
         
-        return [IsAuthenticated()]
+    #     return [IsAuthenticated()]
 
     def get_queryset(self):
         queryset=Incidencia.objects.all();
@@ -475,7 +507,7 @@ class ConvocatoriaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -508,7 +540,7 @@ class ConvocatoriaDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -531,7 +563,7 @@ class ActaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -566,7 +598,7 @@ class ActaDetail(generics.RetrieveUpdateDestroyAPIView):
 
 # Crud asistencia
 class AsistenciaListCreate(generics.ListCreateAPIView):
-    permission_classes=[IsAuthenticated, EsGestor, EsPresidente]    
+    permission_classes=[IsAuthenticated, EsGestorOPresidente]    
     serializer_class=AsistenciaSerializer
 
     def get_queryset(self):
@@ -603,7 +635,7 @@ class OrdenDiaListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
     
@@ -614,7 +646,7 @@ class OrdenDiaDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
 
@@ -726,7 +758,7 @@ class AvisoListCreate(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), EsGestor(), EsPresidente()]
+            return [IsAuthenticated(), EsGestorOPresidente()]
         
         return [IsAuthenticated()]
     
