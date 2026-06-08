@@ -8,6 +8,7 @@ from incidencias.models import *
 from actas.models import *
 from votos.models import *
 from django.db import transaction
+from django.contrib.auth.hashers import make_password
 
 class UsuarioSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
@@ -63,6 +64,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
                 )
 
             return usuario_perfil
+        
         
     def _get_mejor_rol(self, usuario):
         comunidad_id = self.context.get('request').query_params.get('comunidad')
@@ -520,6 +522,8 @@ class PropietariosFicheroSerializer(serializers.Serializer):
         return
     
 class AvisoSerializer(serializers.ModelSerializer):
+    nom_comunidad=serializers.CharField(source='comunidad.nombre', read_only=True)
+    localidad_comunidad=serializers.CharField(source='comunidad.localidad', read_only=True)
     class Meta:
         model=Aviso
         fields='__all__'

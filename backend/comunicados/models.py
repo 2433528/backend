@@ -21,7 +21,7 @@ class Comunicado(models.Model):
             usuario_nombre = self.usuario_creador.nombre
         else:
             usuario_nombre = "Sin usuario"
-        return f"{self.titulo}, {usuario_nombre}"
+        return f"{self.titulo}, {usuario_nombre}, {self.comunidad.nombre}"
 
 
 class ComunicadoUsuario(models.Model):
@@ -33,4 +33,4 @@ class ComunicadoUsuario(models.Model):
         ordering=['-comunicado__fecha_creacion']
 
     def __str__(self):
-        return f"{self.comunicado.titulo}, {'Leido' if self.leido else 'No leido'}"
+        return f"{self.comunicado.titulo}, {'Leido' if self.leido else 'No leido'}, {self.usuario.nombre}"

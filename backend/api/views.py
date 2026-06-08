@@ -101,18 +101,33 @@ def get_user(request):
 
 # Crud usuarios
 class UsuarioListCreate(generics.ListCreateAPIView):
-    permission_classes=[IsAuthenticated, EsGestor]
     serializer_class=UsuarioSerializer
     pagination_class=MiPaginacion
+
+    def get_permissions(self):
+        dni=self.request.query_params.get('dni')
+        
+        if  dni and self.request.method == 'GET':
+            return [IsAuthenticated()]
+        
+        return [IsAuthenticated(), EsGestor()]
         
     def get_queryset(self):
         queryset=Usuario.objects.all()
         comunidad=self.request.query_params.get('comunidad')
         dni=self.request.query_params.get('dni')
 
-        if dni and comunidad:
-            queryset=queryset.filter(dni=dni, propiedades__comunidad__id=comunidad).first()
-            return queryset
+        if comunidad and dni:
+            queryset=queryset.filter(dni=dni, propiedades__comunidad__id=comunidad)
+            
+            if queryset.exists():
+                return queryset
+
+            return Usuario.objects.filter(pk=self.request.user.usuario.id)
+        
+        if dni:
+            return Usuario.objects.filter(pk=self.request.user.usuario.id)
+
 
         if comunidad:
             queryset=queryset.filter(propiedades__comunidad__id=comunidad).distinct()
@@ -132,9 +147,9 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
         nuevo_rol=serializer.validated_data.get('rol')
         nuevo_moroso=serializer.validated_data.get('moroso')
 
-        if comunidad_id:
+        if comunidad_id:            
             item=RolComunidad.objects.filter(usuario=usuario, comunidad_id=comunidad_id).exclude(rol='gestor').first()
-        
+
             if item:
                 if nuevo_rol=='presidente':
                     grupo=Group.objects.get(name="Presidentes")
@@ -145,7 +160,12 @@ class UsuarioDetail(generics.RetrieveUpdateDestroyAPIView):
                         anterior.usuario.user.groups.remove(grupo)                        
                 
                     usuario.user.groups.add(grupo)
-                item.rol=nuevo_rol
+
+                if nuevo_rol != item.rol:
+                    qs=RolComunidad.objects.filter(comunidad_id=comunidad_id, rol=nuevo_rol).exclude(pk=item.pk)
+                    if not qs.exists():
+                        item.rol=nuevo_rol
+
                 item.moroso=nuevo_moroso
                 item.save()
 
@@ -339,15 +359,16 @@ class ComunicadoListCreate(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset=Comunicado.objects.all() 
         comunidad_id=self.request.query_params.get('comunidad')
+        rol=self.request.query_params.get('rol')
         usuario=self.request.user.usuario
 
         if comunidad_id:
             gestor=RolComunidad.objects.filter(comunidad__id=comunidad_id, usuario=usuario, rol='gestor').exists()
             presidente=RolComunidad.objects.filter(comunidad__id=comunidad_id, usuario=usuario, rol='presidente').exists()
-            if gestor or presidente:
+            if(rol=='gestor' or rol=='presidente') and (gestor or presidente):
                 return queryset.filter(comunidad__id=comunidad_id)
         
-            return queryset.filter(comunidad__id=comunidad_id, usuarios=usuario)
+            return queryset.filter(comunidad__id=comunidad_id, comunicado_usuario__usuario=usuario)
         
         return queryset.none()
 
