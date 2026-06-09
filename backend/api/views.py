@@ -470,14 +470,19 @@ class IncidenciaListCreate(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset=Incidencia.objects.all();
         comunidad=self.request.query_params.get('comunidad')
+        rol=self.request.query_params.get('rol')
         roles=self.request.user.usuario.roles.all().values_list('rol', flat=True)
 
         if comunidad:
-            comunidad=Comunidad.objects.get(pk=comunidad)
-            queryset=queryset.filter(comunidad=comunidad)
+            queryset=queryset.filter(comunidad__id=comunidad)
 
-        if not 'gestor' in roles:
-            queryset=queryset.filter(usuario_creador__user=self.request.user)
+        if rol and rol not in roles:
+            return Incidencia.objects.none()
+
+        if rol != 'gestor':
+            queryset = queryset.filter(
+                usuario_creador__user=self.request.user
+            )
 
         return queryset
     
