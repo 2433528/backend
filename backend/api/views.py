@@ -276,6 +276,10 @@ class PropiedadListCreate(generics.ListCreateAPIView):
     
         if propietario and comunidad:
             propietario=Usuario.objects.filter(dni=propietario).first()
+
+            if not RolComunidad.objects.filter(usuario=propietario, comunidad=comunidad).exclude(rol='gestor').exists():
+                RolComunidad.objects.create(usuario=propietario, comunidad=comunidad)
+
             return serializer.save(comunidad=comunidad, usuario=propietario)
 
         raise ValidationError('Datos no válidos.')
@@ -290,8 +294,8 @@ class PropiedadDetail(generics.RetrieveUpdateDestroyAPIView):
         comunidad=serializer.validated_data['comunidad']
         propiedad=self.get_object()
 
-        if not RolComunidad.objects.filter(usuario=usuario, comunidad=comunidad, rol='propietario').exists():
-            RolComunidad.objects.create(usuario=usuario, comunidad=comunidad, rol='propietario')
+        if not RolComunidad.objects.filter(usuario=usuario, comunidad=comunidad).exclude(rol='gestor').exists():
+            RolComunidad.objects.create(usuario=usuario, comunidad=comunidad)
         
         propiedad.usuario=usuario
         propiedad.save()
